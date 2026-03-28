@@ -1,13 +1,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ReactDOM from "react-dom/client";
 import { HelmetProvider } from "react-helmet-async";
-import { getFirebaseAnalytics, getFirebaseApp } from "./lib/firebase";
+import DeployConfigMissing from "./components/DeployConfigMissing";
 import { FirebaseAuthShell } from "./auth/FirebaseAuthShell";
+import {
+  getFirebaseAnalytics,
+  getFirebaseApp,
+  isFirebaseConfigured,
+} from "./lib/firebase";
 import { AppRouterProvider } from "./router";
 import "../index.css";
-
-getFirebaseApp();
-void getFirebaseAnalytics();
 
 BigInt.prototype.toJSON = function () {
   return this.toString();
@@ -19,15 +21,24 @@ declare global {
   }
 }
 
-const queryClient = new QueryClient();
+const rootEl = document.getElementById("root")!;
 
-// User sign-in/sign-up: Firebase Auth only. FirebaseAuthShell avoids loading Internet Identity (IC).
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <HelmetProvider>
-    <QueryClientProvider client={queryClient}>
-      <FirebaseAuthShell>
-        <AppRouterProvider />
-      </FirebaseAuthShell>
-    </QueryClientProvider>
-  </HelmetProvider>,
-);
+if (!isFirebaseConfigured()) {
+  ReactDOM.createRoot(rootEl).render(<DeployConfigMissing />);
+} else {
+  getFirebaseApp();
+  void getFirebaseAnalytics();
+
+  const queryClient = new QueryClient();
+
+  // User sign-in/sign-up: Firebase Auth only. FirebaseAuthShell avoids loading Internet Identity (IC).
+  ReactDOM.createRoot(rootEl).render(
+    <HelmetProvider>
+      <QueryClientProvider client={queryClient}>
+        <FirebaseAuthShell>
+          <AppRouterProvider />
+        </FirebaseAuthShell>
+      </QueryClientProvider>
+    </HelmetProvider>,
+  );
+}
