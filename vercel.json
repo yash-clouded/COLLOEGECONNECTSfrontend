@@ -1,5 +1,4 @@
 {
-  "framework": "vite",
   "installCommand": "npm ci",
   "buildCommand": "npm run build:vercel",
   "outputDirectory": "dist",
