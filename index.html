@@ -14,6 +14,22 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- If the main JS chunk 404s or is blocked, show a hint instead of a blank page -->
+    <script>
+      window.addEventListener(
+        "error",
+        function (e) {
+          var t = e.target;
+          if (!t || t === window || t.tagName !== "SCRIPT") return;
+          var r = document.getElementById("root");
+          if (r && !r.hasChildNodes()) {
+            r.innerHTML =
+              '<p style="padding:2rem;font-family:system-ui,sans-serif;max-width:28rem;line-height:1.5">The app script failed to load. Open DevTools (F12) → Network, reload, and check any red failed request (often under <code>/assets/</code>).</p>';
+          }
+        },
+        true,
+      );
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ReactDOM from "react-dom/client";
 import { HelmetProvider } from "react-helmet-async";
 import DeployConfigMissing from "./components/DeployConfigMissing";
+import { RootErrorBoundary } from "./components/RootErrorBoundary";
 import { FirebaseAuthShell } from "./auth/FirebaseAuthShell";
 import {
   getFirebaseAnalytics,
@@ -33,12 +34,14 @@ if (!isFirebaseConfigured()) {
 
   // User sign-in/sign-up: Firebase Auth only. FirebaseAuthShell avoids loading Internet Identity (IC).
   ReactDOM.createRoot(rootEl).render(
-    <HelmetProvider>
-      <QueryClientProvider client={queryClient}>
-        <FirebaseAuthShell>
-          <AppRouterProvider />
-        </FirebaseAuthShell>
-      </QueryClientProvider>
-    </HelmetProvider>,
+    <RootErrorBoundary>
+      <HelmetProvider>
+        <QueryClientProvider client={queryClient}>
+          <FirebaseAuthShell>
+            <AppRouterProvider />
+          </FirebaseAuthShell>
+        </QueryClientProvider>
+      </HelmetProvider>
+    </RootErrorBoundary>,
   );
 }

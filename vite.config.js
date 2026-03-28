@@ -16,12 +16,15 @@ process.env.STORAGE_GATEWAY_URL =
 const FASTAPI_PORT = process.env.API_PORT || "8000";
 
 export default defineConfig({
+  // Root-relative assets (required for Vercel and most static hosts).
+  base: "/",
   // Show URL in terminal; "error" hides the local link and confuses debugging.
   logLevel: "info",
   build: {
     emptyOutDir: true,
     sourcemap: false,
-    minify: false,
+    // Smaller, reliable production bundles on Vercel (unminified multi-MB output can cause edge cases).
+    minify: "esbuild",
   },
   css: {
     postcss: "./postcss.config.js",
