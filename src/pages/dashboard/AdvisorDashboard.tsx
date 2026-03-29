@@ -9,18 +9,7 @@ import {
 } from "@/lib/restApi";
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  User,
-  Calendar,
-  IndianRupee,
-  Star,
-  TrendingUp,
-  Users,
-  Wallet,
-  ArrowUpRight,
-  History,
-  Gift,
-} from "lucide-react";
+import { User, Calendar, IndianRupee, Star, TrendingUp, Users, Wallet, ArrowUpRight, History, Gift } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect } from "react";
 import AdvisorReferEarnPage from "./AdvisorReferEarnPage";

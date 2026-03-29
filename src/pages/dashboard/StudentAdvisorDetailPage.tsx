@@ -2,8 +2,11 @@ import {
   bookAdvisorSession,
   getAdvisorById,
   getMyStudentProfile,
+  createPaymentOrder,
+  verifyPayment,
   type AdvisorPublicDetail,
 } from "@/lib/restApi";
+import { Razorpay } from "razorpay-checkout";
 import { getFirebaseAuth } from "@/lib/firebase";
 import { Link, useParams } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, BookOpen, Star } from "lucide-react";
@@ -87,49 +90,116 @@ export default function StudentAdvisorDetailPage() {
       alert("Please select one preferred time slot before booking.");
       return;
     }
+
+    const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY;
+    if (!razorpayKey) {
+      alert("Razorpay key is not configured in environment variables (VITE_RAZORPAY_KEY).");
+      return;
+    }
+
     const auth = getFirebaseAuth();
     const user = auth.currentUser;
     if (!user) {
       alert("Sign in as a student to book a session.");
       return;
     }
+
     setBookingBusy(true);
     try {
       let studentName = user.displayName?.trim() || "";
+      let studentEmail = user.email?.trim() || "";
+      let studentPhone = "";
+
       const token = await user.getIdToken(true);
       try {
         const me = await getMyStudentProfile(token);
         if (me.name?.trim()) studentName = me.name.trim();
+        if (me.email?.trim()) studentEmail = me.email.trim();
+        if (me.phone?.trim()) studentPhone = me.phone.trim();
       } catch {
         // Fallback to Firebase user info if profile fetch fails.
       }
-      // Backend sends advisor notification via Resend; only persist locally after email succeeds.
-      await bookAdvisorSession(token, advisor.id, selectedSlot.trim());
-      const booking: SessionBooking = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        advisorId: advisor.id,
-        advisorName: advisor.name?.trim() || "Advisor",
-        studentName: studentName || "Student",
-        studentEmail: user.email?.trim() || "unknown@email",
-        sessionPrice: String(advisor.session_price || ""),
-        selectedSlot: selectedSlot.trim(),
-        bookedAt: new Date().toISOString(),
-        status: "pending",
+
+      const price = Number(advisor.session_price || "0");
+      if (price <= 0) {
+        throw new Error("Invalid session price.");
+      }
+
+      // 1. Create Order on Backend
+      const amountInPaise = Math.round(price * 100);
+      const order = await createPaymentOrder(token, amountInPaise);
+
+      // 2. Open Razorpay Checkout widget
+      const options = {
+        key: razorpayKey,
+        amount: order.amount,
+        currency: order.currency,
+        name: "CollegeConnect",
+        description: `Booking session with ${advisor.name}`,
+        order_id: order.id,
+        prefill: {
+          name: studentName,
+          email: studentEmail,
+          contact: studentPhone,
+        },
+        theme: {
+          color: "#22d3ee", // neon-teal
+        },
+        handler: async (response: any) => {
+          try {
+            setBookingBusy(true);
+            // 3. Verify Payment on Backend
+            await verifyPayment(
+              token,
+              response.razorpay_order_id,
+              response.razorpay_payment_id,
+              response.razorpay_signature,
+            );
+
+            // 4. Finalize Booking
+            await bookAdvisorSession(token, advisor.id, selectedSlot.trim());
+
+            const booking: SessionBooking = {
+              id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              advisorId: advisor.id,
+              advisorName: advisor.name?.trim() || "Advisor",
+              studentName: studentName || "Student",
+              studentEmail: studentEmail || "unknown@email",
+              sessionPrice: String(advisor.session_price || ""),
+              selectedSlot: selectedSlot.trim(),
+              bookedAt: new Date().toISOString(),
+              status: "pending",
+            };
+
+            const raw = localStorage.getItem(BOOKINGS_STORAGE_KEY);
+            const existing: SessionBooking[] = raw ? (JSON.parse(raw) as SessionBooking[]) : [];
+            existing.unshift(booking);
+            localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(existing));
+
+            alert(
+              "Payment successful and session booked! The advisor has been sent an email (Resend). You can follow up from your student dashboard.",
+            );
+          } catch (e) {
+            alert(e instanceof Error ? e.message : "Payment verification or booking failed.");
+          } finally {
+            setBookingBusy(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setBookingBusy(false);
+          },
+        },
       };
-      const raw = localStorage.getItem(BOOKINGS_STORAGE_KEY);
-      const existing: SessionBooking[] = raw ? (JSON.parse(raw) as SessionBooking[]) : [];
-      existing.unshift(booking);
-      localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(existing));
-      alert(
-        "Session booked! The advisor has been sent an email (Resend). You can follow up from your student dashboard.",
-      );
+
+      const rzp = new Razorpay(options);
+      rzp.on("payment.failed", (response: any) => {
+        alert(`Payment failed: ${response.error.description}`);
+        setBookingBusy(false);
+      });
+      rzp.open();
     } catch (e) {
-      alert(
-        e instanceof Error
-          ? e.message
-          : "Could not complete booking or send the advisor email.",
-      );
-    } finally {
+      alert(e instanceof Error ? e.message : "Could not initiate payment process.");
       setBookingBusy(false);
     }
   };

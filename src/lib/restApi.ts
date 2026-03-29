@@ -191,6 +191,19 @@ export type BookingResponse = {
   updated_at: string;
 };
 
+export type PaymentOrderResponse = {
+  id: string;
+  amount: number;
+  currency: string;
+  receipt?: string;
+  key?: string; // Optional: Backend might return the Razorpay key
+};
+
+export type PaymentVerificationResponse = {
+  ok: boolean;
+  message?: string;
+};
+
 export async function registerStudent(
   firebaseIdToken: string,
   body: Record<string, unknown>,
@@ -567,4 +580,43 @@ export async function createStudentReferral(
   });
   if (!res.ok) throw new Error(await parseErrorMessage(res));
   return await parseJsonOrThrow<{ ok: boolean }>(res);
+}
+
+export async function createPaymentOrder(
+  firebaseIdToken: string,
+  amount: number,
+  currency = "INR",
+): Promise<PaymentOrderResponse> {
+  const res = await fetch(url("/api/payments/create-order"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${firebaseIdToken}`,
+    },
+    body: JSON.stringify({ amount, currency }),
+  });
+  if (!res.ok) throw new Error(await parseErrorMessage(res));
+  return await parseJsonOrThrow<PaymentOrderResponse>(res);
+}
+
+export async function verifyPayment(
+  firebaseIdToken: string,
+  razorpay_order_id: string,
+  razorpay_payment_id: string,
+  razorpay_signature: string,
+): Promise<PaymentVerificationResponse> {
+  const res = await fetch(url("/api/payments/verify-payment"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${firebaseIdToken}`,
+    },
+    body: JSON.stringify({
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+    }),
+  });
+  if (!res.ok) throw new Error(await parseErrorMessage(res));
+  return await parseJsonOrThrow<PaymentVerificationResponse>(res);
 }

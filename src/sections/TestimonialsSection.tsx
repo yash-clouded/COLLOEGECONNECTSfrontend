@@ -72,7 +72,7 @@ const quoteColorMap: Record<string, string> = {
   blue: "text-neon-blue",
 };
 
-function TestimonialCard({ t }: { t: (typeof testimonials)[0] }) {
+function TestimonialCard({ t }: { t: (typeof testimonials)[0]; key?: string }) {
   return (
     <div
       className={`glass rounded-2xl p-6 border ${
@@ -156,7 +156,7 @@ export default function TestimonialsSection() {
 
         <div className="testimonial-track px-0">
           {doubled.map((t) => (
-            <TestimonialCard key={t.key} t={t} />
+            <TestimonialCard key={t.id + t.key} t={t} />
           ))}
         </div>
       </div>

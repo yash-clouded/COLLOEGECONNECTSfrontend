@@ -13,6 +13,7 @@ import AdvisorLoginPage from "./pages/auth/AdvisorLoginPage";
 import AdvisorSignupPage from "./pages/auth/AdvisorSignupPage";
 import StudentLoginPage from "./pages/auth/StudentLoginPage";
 import StudentSignupPage from "./pages/auth/StudentSignupPage";
+import TestAccountPage from "./pages/auth/TestAccountPage";
 import AboutPage from "./pages/footer/AboutPage";
 import ContactPage from "./pages/footer/ContactPage";
 import PrivacyPage from "./pages/footer/PrivacyPage";
@@ -38,6 +39,7 @@ const advisorSignupRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 const advisorLoginRoute = createRoute({ getParentRoute: () => rootRoute, path: "/auth/advisor/login", component: AdvisorLoginPage });
 const studentSignupRoute = createRoute({ getParentRoute: () => rootRoute, path: "/auth/student/signup", component: StudentSignupPage });
 const studentLoginRoute = createRoute({ getParentRoute: () => rootRoute, path: "/auth/student/login", component: StudentLoginPage });
+const testAccountRoute = createRoute({ getParentRoute: () => rootRoute, path: "/auth/test-account", component: TestAccountPage });
 const aboutRoute = createRoute({ getParentRoute: () => rootRoute, path: "/about", component: AboutPage });
 const contactRoute = createRoute({ getParentRoute: () => rootRoute, path: "/contact", component: ContactPage });
 const privacyRoute = createRoute({ getParentRoute: () => rootRoute, path: "/privacy", component: PrivacyPage });
@@ -79,6 +81,7 @@ const routeTree = rootRoute.addChildren([
   studentSessionDetailRoute,
   advisorDashboardRoute,
   advisorSessionDetailRoute,
+  testAccountRoute,
 ]);
 
 /**
