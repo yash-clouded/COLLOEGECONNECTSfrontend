@@ -12,7 +12,8 @@ import {
  * Updates title, description, robots, canonical, Open Graph, and Twitter cards from the current path.
  */
 export function SeoFromRoute() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const pathname =
+    useRouterState({ select: (s) => s.location.pathname }) ?? "/";
   const { title, description, noindex } = getSeoForPath(pathname);
   const base = siteBaseUrl();
   const canonical =

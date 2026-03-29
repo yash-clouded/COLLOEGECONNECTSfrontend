@@ -4,7 +4,9 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  useRouterState,
 } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import App from "./App";
 import HomePage from "./pages/home/HomePage";
 import AdvisorLoginPage from "./pages/auth/AdvisorLoginPage";
@@ -82,7 +84,48 @@ const routeTree = rootRoute.addChildren([
   testAccountRoute,
 ]);
 
-export const router = createRouter({ routeTree });
+/**
+ * TanStack Router starts with `matches: []` until `router.load()` runs in a layout effect.
+ * `MatchesInner` renders null until then, which looks like a blank white page. We always
+ * render router children (so `Transitioner` can call `load()`), and show this overlay
+ * only while there are no matches yet.
+ */
+function RouterBootShell({ children }: { children: ReactNode }) {
+  const noMatches = useRouterState({ select: (s) => s.matches.length === 0 });
+
+  return (
+    <>
+      {children}
+      {noMatches ? (
+        <div
+          className="fixed inset-0 z-[99999] flex flex-col items-center justify-center gap-3 bg-[oklch(0.09_0.01_265)] text-[oklch(0.96_0.005_260)]"
+          role="status"
+          aria-live="polite"
+        >
+          <div
+            className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-[oklch(0.67_0.19_40)]"
+            aria-hidden
+          />
+          <p className="text-sm text-white/80">Loading CollegeConnect…</p>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function RoutePendingFallback() {
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+      Loading…
+    </div>
+  );
+}
+
+export const router = createRouter({
+  routeTree,
+  InnerWrap: RouterBootShell,
+  defaultPendingComponent: RoutePendingFallback,
+});
 
 declare module "@tanstack/react-router" {
   interface Register {

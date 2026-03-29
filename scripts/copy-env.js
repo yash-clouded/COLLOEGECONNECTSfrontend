@@ -10,8 +10,10 @@ const destFile = path.join(destDir, "env.json");
 
 try {
   if (!fs.existsSync(sourceFile)) {
-    console.error(`✗ env.json not found at: ${sourceFile}`);
-    process.exit(1);
+    console.warn(
+      `Skipping env.json copy (file not found): ${sourceFile} — OK for Vercel / Firebase-only builds.`,
+    );
+    process.exit(0);
   }
 
   if (!fs.existsSync(destDir)) {

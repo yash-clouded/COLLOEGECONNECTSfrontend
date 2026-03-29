@@ -23,6 +23,19 @@ function optionalEnv(name: keyof ImportMetaEnv): string | undefined {
   return v.trim();
 }
 
+/** True when required `VITE_FIREBASE_*` values exist (e.g. set in Vercel before `vite build`). */
+export function isFirebaseConfigured(): boolean {
+  const ok = (name: keyof ImportMetaEnv) => {
+    const v = import.meta.env[name];
+    return typeof v === "string" && v.trim().length > 0;
+  };
+  return (
+    ok("VITE_FIREBASE_API_KEY") &&
+    ok("VITE_FIREBASE_AUTH_DOMAIN") &&
+    ok("VITE_FIREBASE_PROJECT_ID")
+  );
+}
+
 let _app: FirebaseApp | null = null;
 let _analytics: Analytics | null = null;
 let _analyticsInit: Promise<Analytics | null> | null = null;

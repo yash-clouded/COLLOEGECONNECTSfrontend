@@ -1,18 +1,13 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { lazy, Suspense } from "react";
 import ReactDOM from "react-dom/client";
-import { HelmetProvider } from "react-helmet-async";
-import { getFirebaseAnalytics, getFirebaseApp } from "./lib/firebase";
-import { FirebaseAuthShell } from "./hooks/useInternetIdentity";
-import { AppRouterProvider } from "./router";
+import DeployConfigMissing from "./components/DeployConfigMissing";
+import { RootErrorBoundary } from "./components/RootErrorBoundary";
+import {
+  getFirebaseAnalytics,
+  getFirebaseApp,
+  isFirebaseConfigured,
+} from "./lib/firebase";
 import "../index.css";
-
-console.error("[DEBUG] main.tsx initializing...");
-if (document.getElementById("root")) {
-  document.getElementById("root")!.innerText = "MAIN.TSX EXECUTING - IF YOU SEE THIS, REACT RENDER IS THE ISSUE.";
-}
-getFirebaseApp();
-void getFirebaseAnalytics();
-console.error("[DEBUG] Firebase initialized in main.tsx");
 
 BigInt.prototype.toJSON = function () {
   return this.toString();
@@ -24,16 +19,53 @@ declare global {
   }
 }
 
-const queryClient = new QueryClient();
+const MainShell = lazy(() => import("./MainShell"));
 
-// User sign-in/sign-up: Firebase Auth only. FirebaseAuthShell avoids loading Internet Identity (IC).
-console.error("[DEBUG] ReactDOM rendering...");
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <HelmetProvider>
-    <QueryClientProvider client={queryClient}>
-      <FirebaseAuthShell>
-        <AppRouterProvider />
-      </FirebaseAuthShell>
-    </QueryClientProvider>
-  </HelmetProvider>,
-);
+function LoadingShell() {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#0a0a0b",
+        color: "#e8e8ed",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "column",
+        gap: 16,
+        fontFamily: "system-ui, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          width: 40,
+          height: 40,
+          border: "3px solid rgba(255,255,255,0.2)",
+          borderTopColor: "#ea580c",
+          borderRadius: "50%",
+          animation: "cc-spin 0.75s linear infinite",
+        }}
+        aria-hidden
+      />
+      <p style={{ margin: 0, fontSize: 15 }}>Loading CollegeConnect…</p>
+      <style>{`@keyframes cc-spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+const rootEl = document.getElementById("root")!;
+
+if (!isFirebaseConfigured()) {
+  ReactDOM.createRoot(rootEl).render(<DeployConfigMissing />);
+} else {
+  getFirebaseApp();
+  void getFirebaseAnalytics();
+
+  ReactDOM.createRoot(rootEl).render(
+    <RootErrorBoundary>
+      <Suspense fallback={<LoadingShell />}>
+        <MainShell />
+      </Suspense>
+    </RootErrorBoundary>,
+  );
+}

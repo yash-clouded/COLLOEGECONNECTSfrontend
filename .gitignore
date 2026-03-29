@@ -1,5 +1,7 @@
 # Dependencies
 node_modules/
+# Prefer npm on Vercel; a stale pnpm-lock.yaml forces `pnpm install` and can fail vs package.json
+pnpm-lock.yaml
 .pnp
 .pnp.js
 

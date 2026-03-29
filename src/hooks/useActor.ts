@@ -2,14 +2,17 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import type { backendInterface } from "../backend";
 import { createActorWithConfig } from "../config";
-import { useInternetIdentity } from "./useInternetIdentity";
+import { useInternetIdentity } from "@/auth/useInternetIdentity";
 
 const ACTOR_QUERY_KEY = "actor";
 export function useActor() {
   const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
   const actorQuery = useQuery<backendInterface>({
-    queryKey: [ACTOR_QUERY_KEY, identity?.getPrincipal().toString()],
+    queryKey: [
+      ACTOR_QUERY_KEY,
+      identity?.getPrincipal()?.toString() ?? "anonymous",
+    ],
     queryFn: async () => {
       const isAuthenticated = !!identity;
 
