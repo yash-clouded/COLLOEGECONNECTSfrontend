@@ -11,6 +11,7 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_APP_ID?: string;
   /** Google Analytics (Firebase) — optional */
   readonly VITE_FIREBASE_MEASUREMENT_ID?: string;
+  /** Razorpay Checkout key_id (public); secret stays on the backend */
   readonly VITE_RAZORPAY_KEY?: string;
 }
 

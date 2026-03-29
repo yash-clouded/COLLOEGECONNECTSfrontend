@@ -171,6 +171,35 @@ export async function confirmPasswordResetOtp(
   return await parseJsonOrThrow<{ ok: boolean }>(res);
 }
 
+/** Resend sends OTP; after verify, backend creates Firebase user with this password. */
+export async function requestSignupOtp(
+  role: PasswordResetRole,
+  email: string,
+): Promise<{ ok: boolean; expires_in_seconds: number }> {
+  const res = await fetch(url("/api/auth/signup-otp/request"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ role, email }),
+  });
+  if (!res.ok) throw new Error(await parseErrorMessage(res));
+  return await parseJsonOrThrow<{ ok: boolean; expires_in_seconds: number }>(res);
+}
+
+export async function verifySignupOtp(
+  role: PasswordResetRole,
+  email: string,
+  otp: string,
+  password: string,
+): Promise<{ ok: boolean }> {
+  const res = await fetch(url("/api/auth/signup-otp/verify"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ role, email, otp, password }),
+  });
+  if (!res.ok) throw new Error(await parseErrorMessage(res));
+  return await parseJsonOrThrow<{ ok: boolean }>(res);
+}
+
 export type BookingResponse = {
   id: string;
   advisor_id: string;

@@ -4,28 +4,25 @@ import { Button } from "@/components/ui/button";
 import { PasswordField } from "@/components/ui/password-field";
 import { OTHER_LANGUAGE_LABEL } from "@/constants/signupLanguages";
 import { getFirebaseAuth } from "@/lib/firebase";
-import { afterVerificationEmailSent } from "@/lib/authMessages";
 import {
   formatFirebaseAuthError,
-  formatSignInAfterEmailExistsError,
-  isFirebaseAuthCode,
 } from "@/lib/firebaseAuthErrors";
 import { useEmailVerificationSync } from "@/hooks/useEmailVerificationSync";
 import { finalizeFirebaseSignup } from "@/lib/firebaseSignupFinalize";
 import { CollegeIdImageUploadBox } from "@/components/CollegeIdImageUploadBox";
 import {
   registerAdvisor,
+  requestSignupOtp,
   uploadCollegeIdPairToS3,
   uploadProfilePictureToS3,
+  verifySignupOtp,
 } from "@/lib/restApi";
 import { FirebaseError } from "firebase/app";
 import { useNavigate } from "@tanstack/react-router";
 import {
   type User,
-  createUserWithEmailAndPassword,
   onAuthStateChanged,
   reload,
-  sendEmailVerification,
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
@@ -241,6 +238,8 @@ export default function AdvisorSignupPage() {
   ]);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [signupOtpSent, setSignupOtpSent] = useState(false);
+  const [signupOtp, setSignupOtp] = useState("");
   const [authenticating, setAuthenticating] = useState(false);
   const [refreshingEmail, setRefreshingEmail] = useState(false);
   const [idFrontPreview, setIdFrontPreview] = useState<string | null>(null);
@@ -272,6 +271,8 @@ export default function AdvisorSignupPage() {
     // in the background after a mismatch (awaiting before setState felt "stuck").
     setCollegeEmail(next);
     setDetectedCollege(detectCollege(next));
+    setSignupOtpSent(false);
+    setSignupOtp("");
     if (signedIn != null && signedIn !== "" && next !== signedIn) {
       void signOut(getFirebaseAuth())
         .then(() => {
@@ -284,7 +285,7 @@ export default function AdvisorSignupPage() {
     }
   };
 
-  const handleAuthenticate = async () => {
+  const handleSendSignupOtp = async () => {
     if (!collegeEmail.trim() || !detectedCollege) {
       alert(
         "Use a recognized college email domain so we can detect your institution.",
@@ -299,87 +300,66 @@ export default function AdvisorSignupPage() {
       alert("Password must be at least 6 characters.");
       return;
     }
-    const auth = getFirebaseAuth();
     const trimmedCollege = collegeEmail.trim();
-    const alreadyThisUser = auth.currentUser;
+    const auth = getFirebaseAuth();
     if (
-      alreadyThisUser &&
-      alreadyThisUser.email?.toLowerCase() === trimmedCollege.toLowerCase()
+      auth.currentUser &&
+      auth.currentUser.email?.toLowerCase() === trimmedCollege.toLowerCase()
     ) {
-      setAuthenticating(true);
-      try {
-        if (!alreadyThisUser.emailVerified) {
-          await sendEmailVerification(alreadyThisUser);
-          alert(afterVerificationEmailSent(trimmedCollege));
-        } else {
-          alert(
-            "You're already signed in with this college email. Continue the form below, or sign out to use a different email.",
-          );
-        }
-      } catch (err) {
-        alert(formatFirebaseAuthError(err));
-      } finally {
-        setAuthenticating(false);
-      }
+      alert(
+        "You're already signed in with this college email. Continue below or sign out to use a different email.",
+      );
       return;
     }
-
     setAuthenticating(true);
     try {
-      const cred = await createUserWithEmailAndPassword(
-        auth,
-        trimmedCollege,
-        password,
+      const res = await requestSignupOtp("advisor", trimmedCollege);
+      setSignupOtpSent(true);
+      alert(
+        [
+          `We sent a 6-digit code to ${trimmedCollege}.`,
+          "",
+          `It expires in about ${Math.round(res.expires_in_seconds / 60)} minutes.`,
+          "Check Spam/Promotions if you don't see it.",
+        ].join("\n"),
       );
-      try {
-        await sendEmailVerification(cred.user);
-        alert(afterVerificationEmailSent(trimmedCollege));
-      } catch (verifyErr) {
-        alert(
-          `Your account was created, but the verification email could not be sent:\n\n${formatFirebaseAuthError(verifyErr)}`,
-        );
-      }
     } catch (e) {
-      if (isFirebaseAuthCode(e, "auth/email-already-in-use")) {
-        try {
-          const cred = await signInWithEmailAndPassword(
-            auth,
-            trimmedCollege,
-            password,
-          );
-          try {
-            if (!cred.user.emailVerified) {
-              await sendEmailVerification(cred.user);
-              alert(afterVerificationEmailSent(trimmedCollege));
-            } else {
-              alert(
-                "This email is already verified. Use Sign in below to open your account.",
-              );
-            }
-          } catch (verifyErr) {
-            alert(
-              `Could not send verification email:\n\n${formatFirebaseAuthError(verifyErr)}`,
-            );
-          }
-        } catch (signInErr) {
-          alert(formatSignInAfterEmailExistsError(signInErr));
-        }
-      } else {
-        alert(formatFirebaseAuthError(e));
-      }
+      alert(e instanceof Error ? e.message : "Could not send verification code.");
     } finally {
       setAuthenticating(false);
     }
   };
 
-  const handleResendEmail = async () => {
-    if (!authUser) return;
-    try {
-      await sendEmailVerification(authUser);
-      alert(afterVerificationEmailSent(authUser.email ?? ""));
-    } catch (e) {
-      alert(formatFirebaseAuthError(e));
+  const handleVerifySignupOtp = async () => {
+    const trimmedCollege = collegeEmail.trim();
+    if (!signupOtp.trim()) {
+      alert("Enter the 6-digit code from your email.");
+      return;
     }
+    if (!password || password !== confirmPassword) {
+      alert("Passwords must match.");
+      return;
+    }
+    if (password.length < 6) {
+      alert("Password must be at least 6 characters.");
+      return;
+    }
+    setAuthenticating(true);
+    try {
+      await verifySignupOtp("advisor", trimmedCollege, signupOtp.trim(), password);
+      const auth = getFirebaseAuth();
+      await signInWithEmailAndPassword(auth, trimmedCollege, password);
+      setSignupOtp("");
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Could not verify code.");
+    } finally {
+      setAuthenticating(false);
+    }
+  };
+
+  const handleResendSignupOtp = async () => {
+    setSignupOtp("");
+    await handleSendSignupOtp();
   };
 
   const handleRefreshEmail = async () => {
@@ -399,6 +379,8 @@ export default function AdvisorSignupPage() {
     setDetectedCollege("");
     setPassword("");
     setConfirmPassword("");
+    setSignupOtpSent(false);
+    setSignupOtp("");
   };
 
   const handleIdUpload = (side: "front" | "back", file: File) => {
@@ -472,13 +454,13 @@ export default function AdvisorSignupPage() {
     const auth = getFirebaseAuth();
     const u = auth.currentUser;
     if (!u) {
-      alert("Tap Authenticate first (college email and password above).");
+      alert("Send the verification code, enter it, and sign in before creating your profile.");
       return;
     }
     await reload(u);
     if (!u.emailVerified) {
       alert(
-        "Open the link in the verification email, then tap Refresh email status.",
+        "Your email is not marked verified yet. Sign out and complete code verification again, or contact support.",
       );
       return;
     }
@@ -593,11 +575,9 @@ export default function AdvisorSignupPage() {
     >
       <div className="flex flex-col gap-4">
         <p className="text-xs text-muted-foreground rounded-lg border border-border/60 px-3 py-2">
-          Sign-in uses{" "}
-          <strong className="text-foreground">Firebase Authentication</strong>{" "}
-          with your <strong className="text-foreground">college email</strong>.
-          <strong className="text-foreground"> Email verification</strong> is
-          handled by Google.
+          We verify your college email with a <strong className="text-foreground">one-time code</strong>{" "}
+          sent by <strong className="text-foreground">Resend</strong>. After you enter the code, your
+          password is stored with <strong className="text-foreground">Firebase Authentication</strong>.
         </p>
 
         <div className="rounded-xl border border-border/60 bg-background/30 px-3 py-3 space-y-2">
@@ -719,7 +699,7 @@ export default function AdvisorSignupPage() {
           id="advisor-signup-password"
           label={
             <>
-              Password (Firebase) <span className="text-neon-orange">•</span>
+              Password <span className="text-neon-orange">•</span>
             </>
           }
           name="password"
@@ -747,62 +727,106 @@ export default function AdvisorSignupPage() {
 
         {authUser && emailOk ? (
           <p className="text-xs text-muted-foreground rounded-lg border border-border/60 px-3 py-2">
-            After email verification, re-enter your password here. When you tap{" "}
-            <strong className="text-foreground">Create account</strong>, we
-            confirm it with Firebase, set your display name, then save your
-            profile to our database.
+            When you tap <strong className="text-foreground">Create account</strong>, we confirm your
+            password with Firebase, set your display name, then save your profile to our database.
           </p>
         ) : null}
 
         {!authUser ? (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Please check the verification email in spam if you haven&apos;t received the email in your
-              primary inbox.
+              Enter your college email and password, then request a code. After you verify the code,
+              you’ll be signed in automatically.
             </p>
-            <Button
-              type="button"
-              onClick={handleAuthenticate}
-              disabled={authenticating || !detectedCollege}
-              className="w-full bg-neon-orange hover:bg-neon-orange/95 text-black font-semibold rounded-xl shadow-lg shadow-neon-orange/30 border border-orange-400/90 ring-1 ring-white/10 disabled:opacity-50 disabled:shadow-none"
-            >
-              {authenticating ? (
-                <Loader size={16} className="mr-2 animate-spin" />
-              ) : (
-                <Mail size={16} className="mr-2" />
-              )}
-              {authenticating ? "Authenticating…" : "Authenticate"}
-            </Button>
+            {!signupOtpSent ? (
+              <Button
+                type="button"
+                onClick={handleSendSignupOtp}
+                disabled={authenticating || !detectedCollege}
+                className="w-full bg-neon-orange hover:bg-neon-orange/95 text-black font-semibold rounded-xl shadow-lg shadow-neon-orange/30 border border-orange-400/90 ring-1 ring-white/10 disabled:opacity-50 disabled:shadow-none"
+              >
+                {authenticating ? (
+                  <Loader size={16} className="mr-2 animate-spin" />
+                ) : (
+                  <Mail size={16} className="mr-2" />
+                )}
+                {authenticating ? "Sending…" : "Send verification code"}
+              </Button>
+            ) : (
+              <div className="flex flex-col gap-2 rounded-xl border border-border/80 p-3">
+                <label
+                  className="text-sm text-muted-foreground"
+                  htmlFor="advisor-signup-otp"
+                >
+                  Code from email
+                </label>
+                <input
+                  id="advisor-signup-otp"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="6-digit code"
+                  value={signupOtp}
+                  onChange={(e) => setSignupOtp(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                  className="bg-background border border-border rounded-xl px-4 py-2 text-sm text-foreground focus:outline-none focus:border-neon-orange transition-colors tracking-widest"
+                />
+                <Button
+                  type="button"
+                  onClick={handleVerifySignupOtp}
+                  disabled={authenticating || signupOtp.length < 6}
+                  className="w-full bg-neon-orange hover:bg-neon-orange/95 text-black font-semibold rounded-xl shadow-lg shadow-neon-orange/30 border border-orange-400/90 ring-1 ring-white/10 disabled:opacity-50 disabled:shadow-none"
+                >
+                  {authenticating ? (
+                    <Loader size={16} className="mr-2 animate-spin" />
+                  ) : (
+                    <CheckCircle size={16} className="mr-2" />
+                  )}
+                  {authenticating ? "Verifying…" : "Verify code & sign in"}
+                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleResendSignupOtp}
+                    disabled={authenticating}
+                    className="text-xs underline text-neon-orange disabled:opacity-50"
+                  >
+                    Resend code
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignupOtpSent(false);
+                      setSignupOtp("");
+                    }}
+                    disabled={authenticating}
+                    className="text-xs underline text-muted-foreground disabled:opacity-50"
+                  >
+                    Start over
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-2 rounded-xl border border-border/80 p-3">
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Email verification</span>
+              <span className="text-muted-foreground">Email verified</span>
               {emailOk ? (
                 <span className="inline-flex items-center gap-1 text-green-500">
-                  <CheckCircle size={16} /> Verified
+                  <CheckCircle size={16} /> Ready to continue
                 </span>
               ) : (
-                <span className="text-amber-500/90">
-                  Pending — check your inbox
-                </span>
+                <span className="text-amber-500/90">Syncing…</span>
               )}
             </div>
             <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleResendEmail}
-                className="text-xs underline text-neon-orange"
-              >
-                Resend verification email
-              </button>
               <button
                 type="button"
                 onClick={handleRefreshEmail}
                 disabled={refreshingEmail}
                 className="text-xs underline text-neon-orange disabled:opacity-50"
               >
-                {refreshingEmail ? "Refreshing…" : "Refresh email status"}
+                {refreshingEmail ? "Refreshing…" : "Refresh status"}
               </button>
               <button
                 type="button"
@@ -1192,7 +1216,7 @@ export default function AdvisorSignupPage() {
           </Button>
           {authUser && !emailOk ? (
             <p className="text-xs text-muted-foreground text-center mt-2">
-              Verify your email (link in inbox), then tap Refresh email status.
+              Tap Refresh status if this message persists.
             </p>
           ) : null}
         </div>
