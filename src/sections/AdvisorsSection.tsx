@@ -23,7 +23,7 @@ const avatarColors = [
   "from-emerald-500 to-teal-500",
 ];
 
-function AdvisorCard({ advisor, index }: { advisor: Advisor; index: number }) {
+function AdvisorCard({ advisor, index }: { advisor: Advisor; index: number; key?: string | number }) {
   const [hovered, setHovered] = useState(false);
   const initials = advisor.name.split(" ").map((n) => n[0]).join("");
 
@@ -119,13 +119,16 @@ export default function AdvisorsSection() {
 
         {/* Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {advisors.map((advisor, i) => (
-            <AdvisorCard
-              key={"id" in advisor ? (advisor as { id: string }).id : `advisor-${i}`}
-              advisor={advisor}
-              index={i}
-            />
-          ))}
+          {advisors.map((advisor, i) => {
+            const advKey = "id" in advisor ? (advisor as { id: string }).id : `advisor-${i}`;
+            return (
+              <AdvisorCard
+                key={advKey}
+                advisor={advisor}
+                index={i}
+              />
+            );
+          })}
         </div>
       </div>
     </section>
