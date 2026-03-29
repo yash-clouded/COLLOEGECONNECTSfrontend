@@ -193,7 +193,13 @@ export default function StudentSignupPage() {
       await signInWithEmailAndPassword(auth, trimmedEmail, password);
       setSignupOtp("");
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Could not verify code.");
+      if (e instanceof FirebaseError) {
+        alert(
+          `${formatFirebaseAuthError(e)}\n\nIf the code was accepted but sign-in failed, try Sign in with the same email and password.`,
+        );
+      } else {
+        alert(e instanceof Error ? e.message : "Could not verify code.");
+      }
     } finally {
       setAuthenticating(false);
     }
@@ -538,8 +544,8 @@ export default function StudentSignupPage() {
         {!authUser ? (
           <div className="flex flex-col gap-3">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Enter your email and password, then request a code. After you verify the code, you’ll be
-              signed in automatically.
+              Enter your email and password, then tap <strong className="text-foreground">Send email OTP</strong>.
+              We email you a one-time code; enter it below to sign in.
             </p>
             {!signupOtpSent ? (
               <Button
@@ -553,7 +559,7 @@ export default function StudentSignupPage() {
                 ) : (
                   <Mail size={16} className="mr-2" />
                 )}
-                {authenticating ? "Sending…" : "Send verification code"}
+                {authenticating ? "Sending…" : "Send email OTP"}
               </Button>
             ) : (
               <div className="flex flex-col gap-2 rounded-xl border border-border/80 p-3">
@@ -561,7 +567,7 @@ export default function StudentSignupPage() {
                   className="text-sm text-muted-foreground"
                   htmlFor="student-signup-otp"
                 >
-                  Code from email
+                  Email OTP
                 </label>
                 <input
                   id="student-signup-otp"
@@ -584,7 +590,7 @@ export default function StudentSignupPage() {
                   ) : (
                     <CheckCircle size={16} className="mr-2" />
                   )}
-                  {authenticating ? "Verifying…" : "Verify code & sign in"}
+                  {authenticating ? "Verifying…" : "Verify OTP & sign in"}
                 </Button>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -593,7 +599,7 @@ export default function StudentSignupPage() {
                     disabled={authenticating}
                     className="text-xs underline text-neon-teal disabled:opacity-50"
                   >
-                    Resend code
+                    Resend OTP
                   </button>
                   <button
                     type="button"

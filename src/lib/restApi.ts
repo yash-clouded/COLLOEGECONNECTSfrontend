@@ -3,10 +3,19 @@
  * or set VITE_REST_API_URL=http://localhost:8000
  */
 
+/**
+ * Production: set `VITE_REST_API_URL` to the API **origin** only (no path), e.g.
+ * `https://api.example.com` — requests use paths like `/api/auth/signup-otp/request`.
+ * A trailing `/api` is stripped so `https://api.example.com/api` still resolves correctly.
+ */
 export function restApiBase(): string {
   const v = import.meta.env.VITE_REST_API_URL;
   if (typeof v === "string" && v.trim()) {
-    return v.replace(/\/$/, "");
+    let base = v.trim().replace(/\/$/, "");
+    if (/\/api$/i.test(base)) {
+      base = base.replace(/\/api$/i, "");
+    }
+    return base.replace(/\/$/, "");
   }
   return "";
 }
@@ -171,7 +180,7 @@ export async function confirmPasswordResetOtp(
   return await parseJsonOrThrow<{ ok: boolean }>(res);
 }
 
-/** Resend sends OTP; after verify, backend creates Firebase user with this password. */
+/** POST `/api/auth/signup-otp/request` — Resend emails OTP; no Firebase user yet. */
 export async function requestSignupOtp(
   role: PasswordResetRole,
   email: string,
@@ -185,6 +194,7 @@ export async function requestSignupOtp(
   return await parseJsonOrThrow<{ ok: boolean; expires_in_seconds: number }>(res);
 }
 
+/** POST `/api/auth/signup-otp/verify` — checks OTP, creates Firebase user (email verified). */
 export async function verifySignupOtp(
   role: PasswordResetRole,
   email: string,
