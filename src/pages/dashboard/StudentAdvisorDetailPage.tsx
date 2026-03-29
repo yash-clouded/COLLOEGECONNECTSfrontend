@@ -6,7 +6,6 @@ import {
   verifyPayment,
   type AdvisorPublicDetail,
 } from "@/lib/restApi";
-import { Razorpay } from "razorpay-checkout";
 import { getFirebaseAuth } from "@/lib/firebase";
 import { Link, useParams } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, BookOpen, Star } from "lucide-react";
@@ -192,7 +191,7 @@ export default function StudentAdvisorDetailPage() {
         },
       };
 
-      const rzp = new Razorpay(options);
+      const rzp = new (window as any).Razorpay(options);
       rzp.on("payment.failed", (response: any) => {
         alert(`Payment failed: ${response.error.description}`);
         setBookingBusy(false);

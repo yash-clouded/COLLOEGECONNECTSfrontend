@@ -46,6 +46,10 @@ export default defineConfig({
     strictPort: false,
     proxy: {
       // FastAPI (MongoDB sign-up) — match before generic /api (IC replica)
+      "/api/health": {
+        target: `http://127.0.0.1:${FASTAPI_PORT}`,
+        changeOrigin: true,
+      },
       "/api/students": {
         target: `http://127.0.0.1:${FASTAPI_PORT}`,
         changeOrigin: true,
@@ -63,6 +67,10 @@ export default defineConfig({
         changeOrigin: true,
       },
       "/api/bookings": {
+        target: `http://127.0.0.1:${FASTAPI_PORT}`,
+        changeOrigin: true,
+      },
+      "/api/payments": {
         target: `http://127.0.0.1:${FASTAPI_PORT}`,
         changeOrigin: true,
       },

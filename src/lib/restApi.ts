@@ -1,19 +1,9 @@
-/**
- * CollegeConnect FastAPI (MongoDB). Use Vite proxy for /api/students and /api/advisors in dev,
- * or set VITE_REST_API_URL=http://localhost:8000
- */
-
-export function restApiBase(): string {
-  const v = import.meta.env.VITE_REST_API_URL;
-  if (typeof v === "string" && v.trim()) {
-    return v.replace(/\/$/, "");
-  }
-  return "";
-}
+// Use environment variable for production, or fallback to empty (Vite proxy) for local development.
+const API_URL = import.meta.env.VITE_REST_API_URL || "";
 
 function url(path: string): string {
   const p = path.startsWith("/") ? path : `/${path}`;
-  const base = restApiBase();
+  const base = API_URL.replace(/\/$/, "");
   return base ? `${base}${p}` : p;
 }
 
