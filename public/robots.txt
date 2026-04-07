@@ -1,0 +1,11 @@
+# Public marketing pages are crawlable; app dashboards are not.
+User-agent: *
+Allow: /
+
+Disallow: /student/
+Disallow: /advisor/
+Disallow: /pending
+
+# After you set VITE_SITE_URL in .env, run: npm run sitemap
+# Then add one line here (absolute URL required):
+# Sitemap: https://YOUR_DOMAIN/sitemap.xml

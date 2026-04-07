@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="CollegeConnect — connect with verified college advisors for JEE prep, admissions guidance, and mentoring. Book sessions with students from IITs, NITs, and colleges across India."
+    />
+    <meta name="theme-color" content="#0a0a0b" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    <title>CollegeConnect — Find your college advisor</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- If the main JS chunk 404s or is blocked, show a hint instead of a blank page -->
+    <script>
+      window.addEventListener(
+        "error",
+        function (e) {
+          var t = e.target;
+          if (!t || t === window || t.tagName !== "SCRIPT") return;
+          var r = document.getElementById("root");
+          if (r && !r.hasChildNodes()) {
+            r.innerHTML =
+              '<p style="padding:2rem;font-family:system-ui,sans-serif;max-width:28rem;line-height:1.5">The app script failed to load. Open DevTools (F12) → Network, reload, and check any red failed request (often under <code>/assets/</code>).</p>';
+          }
+        },
+        true,
+      );
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
