@@ -4,14 +4,17 @@ import {
   getAdvisorsDirectory,
   getMyStudentProfile,
   getMyBookings,
+  getStudentReferralSummary,
   type AdvisorDirectoryItem,
   type StudentProfileResponse,
   type BookingResponse,
+  type ReferralSummaryResponse,
   updateMyStudentProfile,
+  syncBookingStatus,
 } from "@/lib/restApi";
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import { useNavigate } from "@tanstack/react-router";
-import { BookOpen, User, Calendar, Search, ChevronDown, Star, ArrowRight, Gift } from "lucide-react";
+import { BookOpen, User, Calendar, Search, ChevronDown, Star, ArrowRight, Gift, Video, RefreshCw, IndianRupee, CreditCard, Monitor } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect } from "react";
 import StudentReferEarnPage from "./StudentReferEarnPage";
@@ -34,6 +37,87 @@ const TABS = [
   { id: "refer", label: "Refer & Earn", icon: Gift },
   { id: "profile", label: "My Profile", icon: User },
 ];
+
+function BookingCardContent({ booking }: { booking: BookingResponse }) {
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSyncStatus = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const auth = getFirebaseAuth();
+    const u = auth.currentUser;
+    if (!u) return;
+
+    setSyncing(true);
+    try {
+      const token = await u.getIdToken(true);
+      const res = await syncBookingStatus(token, booking.id);
+      if (res.ok) {
+        alert("Payment verified! Your session is now confirmed.");
+        window.location.reload(); 
+      } else {
+        alert(res.message || "Payment not yet received.");
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Sync failed.");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleJoin = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!booking.meet_link) return;
+    window.open(booking.meet_link, "_blank");
+  };
+
+  return (
+    <div className="glass rounded-2xl border border-border p-5 hover:border-neon-teal/50 transition-colors group flex flex-col h-full cursor-pointer overflow-hidden">
+      <div className="flex-1">
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Advisor</p>
+            <p className="text-lg font-semibold text-foreground">{booking.advisor_name}</p>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <p
+              className={`text-[10px] px-2 py-0.5 rounded-full border uppercase font-medium ${
+                booking.status === "confirmed" || booking.status === "finalized"
+                  ? "bg-neon-teal/10 border-neon-teal/30 text-neon-teal"
+                  : "bg-amber-500/10 border-amber-500/30 text-amber-500"
+              }`}
+            >
+              {booking.status || "pending"}
+            </p>
+            {booking.status === "pending" && (
+              <button
+                onClick={handleSyncStatus}
+                disabled={syncing}
+                className="inline-flex items-center gap-1 text-neon-teal hover:text-neon-teal/80 transition-colors"
+                title="Already paid? Click to sync status"
+              >
+                <RefreshCw size={11} className={syncing ? "animate-spin" : ""} />
+                <span className="text-[10px] font-semibold underline">Check Payment</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2">
+        <div className="flex gap-2">
+          <button
+            disabled={!booking.meet_link || (booking.status !== "confirmed" && booking.status !== "finalized")}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 bg-neon-teal hover:bg-neon-teal/90 text-black text-xs font-semibold h-9 rounded-xl transition-all disabled:opacity-50"
+            onClick={handleJoin}
+          >
+            <Video size={14} />
+            {booking.status === "pending" ? "Pending" : "Join"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -62,6 +146,8 @@ export default function StudentDashboard() {
   useEffect(() => {
     document.title = "Student Dashboard — CollegeConnect";
   }, []);
+  const [referralSummary, setReferralSummary] = useState<ReferralSummaryResponse | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     const loadBookings = async () => {
@@ -76,6 +162,27 @@ export default function StudentDashboard() {
       }
     };
     void loadBookings();
+    const timer = setInterval(() => void loadBookings(), 30000); // 30s polling
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [authUser?.uid, activeTab]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadReferral = async () => {
+      const u = getFirebaseAuth().currentUser;
+      if (!u || activeTab !== "profile") return;
+      try {
+        const token = await u.getIdToken(true);
+        const data = await getStudentReferralSummary(token);
+        if (!cancelled) setReferralSummary(data);
+      } catch (e) {
+        /* ignore */
+      }
+    };
+    void loadReferral();
     return () => {
       cancelled = true;
     };
@@ -191,6 +298,9 @@ export default function StudentDashboard() {
     }
   };
 
+  const dynamicColleges = ["All Colleges", ...new Set(advisors.map(a => a.college).filter(Boolean).sort())];
+  const dynamicBranches = ["All Branches", ...new Set(advisors.map(a => a.branch).filter(Boolean).sort())];
+
   const filteredAdvisors = advisors.filter((a) => {
     const name = String(a.name ?? "");
     const college = String(a.college ?? "");
@@ -269,7 +379,7 @@ export default function StudentDashboard() {
                   onChange={(e) => setSelectedCollege(e.target.value)}
                   className="bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-neon-teal transition-colors appearance-none pr-8 cursor-pointer"
                 >
-                  {COLLEGES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {dynamicColleges.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <ChevronDown size={14} className="absolute right-3 top-3 text-muted-foreground pointer-events-none" />
               </div>
@@ -279,7 +389,7 @@ export default function StudentDashboard() {
                   onChange={(e) => setSelectedBranch(e.target.value)}
                   className="bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-neon-teal transition-colors appearance-none pr-8 cursor-pointer"
                 >
-                  {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+                  {dynamicBranches.map(b => <option key={b} value={b}>{b}</option>)}
                 </select>
                 <ChevronDown size={14} className="absolute right-3 top-3 text-muted-foreground pointer-events-none" />
               </div>
@@ -437,60 +547,7 @@ export default function StudentDashboard() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {mySessionBookings.map((booking) => (
-                  <div
-                    key={booking.id}
-                    role="button"
-                    tabIndex={0}
-                    className="glass rounded-2xl border border-border p-5 cursor-pointer hover:border-neon-teal/50 transition-colors"
-                    onClick={() =>
-                      navigate({
-                        to: "/student/session/$bookingId",
-                        params: { bookingId: booking.id },
-                      })
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        navigate({
-                          to: "/student/session/$bookingId",
-                          params: { bookingId: booking.id },
-                        });
-                      }
-                    }}
-                  >
-                    <p className="text-xs text-muted-foreground mb-1">Advisor</p>
-                    <p className="text-lg font-semibold text-foreground">{booking.advisor_name}</p>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Status: {booking.status || "pending"}
-                    </p>
-                    <div className="grid grid-cols-2 gap-2 mt-3">
-                      <div className="bg-background/50 rounded-xl px-3 py-2 border border-border/60">
-                        <p className="text-[11px] text-muted-foreground">Session price</p>
-                        <p className="text-sm font-medium text-neon-orange">
-                          {booking.session_price ? `₹${booking.session_price}` : "—"}
-                        </p>
-                      </div>
-                      <div className="bg-background/50 rounded-xl px-3 py-2 border border-border/60">
-                        <p className="text-[11px] text-muted-foreground">Booked at</p>
-                        <p className="text-sm font-medium text-foreground">
-                          {new Date(booking.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-3 bg-background/50 rounded-xl px-3 py-2 border border-border/60">
-                      {booking.status === "changed" || booking.status === "finalized" ? (
-                        <>
-                          <p className="text-[11px] text-muted-foreground mt-2">Preferred slot</p>
-                          <p className="text-sm font-medium text-neon-teal">{booking.selected_slot || "—"}</p>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-[11px] text-muted-foreground">Preferred slot</p>
-                          <p className="text-sm font-medium text-foreground">{booking.selected_slot || "—"}</p>
-                        </>
-                      )}
-                    </div>
-                  </div>
+                  <BookingCardContent key={booking.id} booking={booking} />
                 ))}
               </div>
             )}
@@ -512,13 +569,44 @@ export default function StudentDashboard() {
             {loadingProfile ? (
               <p className="text-sm text-muted-foreground mb-4">Loading profile…</p>
             ) : null}
-            <div className="flex items-center gap-4 mb-8">
+            <div className="flex items-center gap-4 mb-2">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-neon-teal to-teal-400 flex items-center justify-center text-2xl font-bold text-white">
                 {studentName.split(" ").map(n => n[0]).join("")}
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-foreground">{studentName}</h2>
                 <p className="text-muted-foreground text-sm">Student</p>
+              </div>
+            </div>
+
+            {/* Stats Bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 mt-6">
+              <div className="glass border border-white/10 rounded-2xl p-4 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-neon-teal/10 flex items-center justify-center text-neon-teal">
+                  <Monitor size={20} />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Sessions</p>
+                  <p className="text-xl font-bold text-foreground">{student?.total_sessions || 0}</p>
+                </div>
+              </div>
+              <div className="glass border border-white/10 rounded-2xl p-4 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-neon-orange/10 flex items-center justify-center text-neon-orange">
+                  <IndianRupee size={20} />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Total Spent</p>
+                  <p className="text-xl font-bold text-foreground">₹{student?.total_spent || 0}</p>
+                </div>
+              </div>
+              <div className="glass border border-white/10 rounded-2xl p-4 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
+                  <Gift size={20} />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Referral Rewards</p>
+                  <p className="text-xl font-bold text-foreground">₹{referralSummary?.referral_rewards_inr || 0}</p>
+                </div>
               </div>
             </div>
 

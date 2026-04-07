@@ -3,8 +3,8 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getFirebaseAuth } from "@/lib/firebase";
-import { getAdvisorById, notifyAdvisorFinalSlot, getBookingById, joinBookingAction, reportNoShowAction, type BookingResponse } from "@/lib/restApi";
-import { Calendar, Video, AlertTriangle } from "lucide-react";
+import { getAdvisorById, notifyAdvisorFinalSlot, getBookingById, joinBookingAction, reportNoShowAction, syncBookingStatus, type BookingResponse } from "@/lib/restApi";
+import { Calendar, Video, AlertTriangle, RefreshCw } from "lucide-react";
 
 
 export default function StudentSessionDetailPage() {
@@ -15,6 +15,7 @@ export default function StudentSessionDetailPage() {
   const [finalSlot, setFinalSlot] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,6 +104,29 @@ export default function StudentSessionDetailPage() {
     }
   };
 
+  const handleSyncStatus = async () => {
+    if (!booking) return;
+    const auth = getFirebaseAuth();
+    const u = auth.currentUser;
+    if (!u) return;
+
+    setSyncing(true);
+    try {
+      const token = await u.getIdToken(true);
+      const res = await syncBookingStatus(token, booking.id);
+      if (res.ok) {
+        alert("Payment verified! Your session is now confirmed.");
+        window.location.reload(); 
+      } else {
+        alert(res.message || "Payment not yet received.");
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Sync failed.");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const getCalendarUrl = () => {
     if (!booking) return "";
     const start = new Date(booking.scheduled_time).toISOString().replace(/-|:|\.\d\d\d/g, "");
@@ -161,6 +185,18 @@ export default function StudentSessionDetailPage() {
                 <Video size={16} />
                 Join Meeting
               </Button>
+
+              {booking.status === "pending" && (
+                <Button
+                  variant="outline"
+                  disabled={syncing}
+                  className="gap-2 border-neon-teal/50 text-neon-teal hover:bg-neon-teal/10"
+                  onClick={handleSyncStatus}
+                >
+                  <RefreshCw size={16} className={syncing ? "animate-spin" : ""} />
+                  {syncing ? "Verifying..." : "Check Payment"}
+                </Button>
+              )}
             </div>
           </div>
 

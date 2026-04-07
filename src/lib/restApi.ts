@@ -97,6 +97,8 @@ export type StudentProfileResponse = {
   jee_advanced_rank?: string;
   languages?: string[];
   language_other?: string;
+  total_spent?: number;
+  total_sessions?: number;
 };
 
 export type AdvisorDirectoryItem = {
@@ -639,4 +641,12 @@ export async function verifyPayment(
   });
   if (!res.ok) throw new Error(await parseErrorMessage(res));
   return await parseJsonOrThrow<PaymentVerificationResponse>(res);
+}
+
+export async function syncBookingStatus(firebaseIdToken: string, bookingId: string) {
+  const res = await fetch(url(`/api/payments/sync-status/${bookingId}`), {
+    method: "POST",
+    headers: { Authorization: `Bearer ${firebaseIdToken}` },
+  });
+  return await parseJsonOrThrow<{ ok: boolean; message?: string }>(res);
 }
