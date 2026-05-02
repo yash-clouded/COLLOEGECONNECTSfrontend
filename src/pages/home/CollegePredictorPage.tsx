@@ -15,6 +15,48 @@ interface College {
   Institute: string;
   Program: string;
   ClosingRank: number;
+  Type: string;
+  Status: "Dream" | "Safe";
+}
+
+function CollegeCard({ college, index }: { college: College; index: number }) {
+  const typeColors: Record<string, string> = {
+    IIT: "bg-orange-500/10 border-orange-500/20 text-orange-500",
+    NIT: "bg-blue-500/10 border-blue-500/20 text-blue-500",
+    IIIT: "bg-purple-500/10 border-purple-500/20 text-purple-500",
+    Other: "bg-gray-500/10 border-gray-500/20 text-gray-500",
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.05 }}
+      className="p-5 rounded-2xl border border-border/50 bg-background/40 hover:border-neon-teal/30 transition-all group"
+    >
+      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider border ${typeColors[college.Type] || typeColors.Other}`}>
+              {college.Type}
+            </span>
+            <h3 className="font-bold text-foreground leading-tight group-hover:text-neon-teal transition-colors">
+              {college.Institute}
+            </h3>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {college.Program}
+          </p>
+        </div>
+        <div className="text-left sm:text-right shrink-0 border-t sm:border-t-0 border-border/20 pt-3 sm:pt-0 w-full sm:w-auto">
+          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-tight mb-0.5">Closing Rank</div>
+          <div className="text-xl font-mono font-bold text-foreground">
+            #{college.ClosingRank.toLocaleString()}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
 }
 
 export default function CollegePredictorPage() {
@@ -238,44 +280,41 @@ export default function CollegePredictorPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="mb-8 space-y-4"
+              className="mb-12 space-y-10"
             >
-              <div className="flex items-center gap-2 mb-4">
-                <div className="h-px flex-1 bg-border/50" />
-                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground px-4">
-                  Estimated Colleges
-                </span>
-                <div className="h-px flex-1 bg-border/50" />
-              </div>
-              
-              <div className="grid gap-3">
-                {results.map((college, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    className="p-5 rounded-2xl border border-border/50 bg-background/40 hover:border-neon-teal/30 transition-all"
-                  >
-                    <div className="flex justify-between items-start gap-4">
-                      <div className="flex-1">
-                        <h3 className="font-bold text-foreground">
-                          {college.Institute}
-                        </h3>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {college.Program}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-tight">Closing Rank</div>
-                        <div className="text-lg font-mono font-bold text-foreground">
-                          #{college.ClosingRank.toLocaleString()}
-                        </div>
-                      </div>
+              {/* Dream Options Group */}
+              {results.some(r => r.Status === "Dream") && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="px-3 py-1 rounded-full bg-mango/10 border border-mango/20 text-[10px] font-bold text-mango uppercase tracking-widest">
+                      Dream / Reach
                     </div>
-                  </motion.div>
-                ))}
-              </div>
+                    <div className="h-px flex-1 bg-gradient-to-r from-mango/20 to-transparent" />
+                  </div>
+                  <div className="grid gap-3">
+                    {results.filter(r => r.Status === "Dream").map((college, i) => (
+                      <CollegeCard key={`dream-${i}`} college={college} index={i} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Safe Options Group */}
+              {results.some(r => r.Status === "Safe") && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="px-3 py-1 rounded-full bg-neon-teal/10 border border-neon-teal/20 text-[10px] font-bold text-neon-teal uppercase tracking-widest">
+                      Safe Bets
+                    </div>
+                    <div className="h-px flex-1 bg-gradient-to-r from-neon-teal/20 to-transparent" />
+                  </div>
+                  <div className="grid gap-3">
+                    {results.filter(r => r.Status === "Safe").map((college, i) => (
+                      <CollegeCard key={`safe-${i}`} college={college} index={i} />
+                    ))}
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
 
