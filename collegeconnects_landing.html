@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CollegeConnects | Real Conversations. Better College Decisions.</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.27/bundled/lenis.min.js"></script>
+
+    <style>
+        :root {
+            --purple-bg: #9c8df6;
+            --purple-dark: #05051a;
+            --violet-halo: #7a66e6;
+            --orange: #f5a623;
+            --white: #ffffff;
+            --black: #0d0d0d;
+            --font-main: 'DM Sans', sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; outline: none; }
+        body { font-family: var(--font-main); background-color: var(--white); color: var(--black); overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+        
+        .container { max-width: 1400px; margin: 0 auto; padding: 0 4rem; position: relative; }
+
+        /* --- IMMERSIVE SCROLL WRAPPER --- */
+        .immersive-wrapper { height: 500vh; position: relative; background: #9689f5; }
+        .sticky-viewport { height: 100vh; width: 100%; position: sticky; top: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 50% 50%, #b2a8f8 0%, #9c8df6 100%); }
+        .canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #immersive-canvas { width: 100%; height: 100%; }
+
+        /* --- NAVBAR --- */
+        nav { position: fixed; top: 2.5rem; left: 0; width: 100%; z-index: 1000; }
+        .logo { font-size: 1.5rem; font-weight: 800; color: var(--orange); text-decoration: none; }
+        .nav-links-pill {
+            background: rgba(20, 20, 40, 0.45); backdrop-filter: blur(25px);
+            padding: 0.8rem 3.5rem; border-radius: 999px; display: flex; gap: 3rem;
+            position: absolute; left: 50%; transform: translateX(-50%);
+        }
+        .nav-links-pill a { color: var(--white); text-decoration: none; font-size: 1rem; opacity: 0.8; }
+        .btn-get-started { background: #ffffff; color: var(--black); padding: 0.8rem 1.6rem; font-weight: 700; border-radius: 12px; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
+
+        /* --- PHASES --- */
+        .scroll-content { position: relative; z-index: 10; width: 100%; height: 100vh; display: flex; align-items: center; }
+        .phase h1 { font-size: clamp(3.5rem, 8vw, 6.5rem); font-weight: 500; line-height: 0.95; letter-spacing: -0.03em; color: white; pointer-events: none; }
+        
+        .phase-mission h2 { font-size: 4rem; font-weight: 500; line-height: 1.1; color: white; max-width: 800px; letter-spacing: -0.02em; }
+        .phase-hero, .phase-mission, .phase-trusted { position: absolute; width: 100%; left: 0; }
+        .phase-mission, .phase-trusted { opacity: 0; transform: translateY(50px); pointer-events: none; }
+
+        .tag { text-transform: uppercase; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.1em; color: rgba(255,255,255,0.7); margin-bottom: 2rem; }
+
+        /* --- TRUSTED LOGOS --- */
+        .logo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-top: 4rem; }
+        .logo-card { 
+            background: rgba(255, 255, 255, 0.08); 
+            backdrop-filter: blur(40px); 
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            height: 150px; border-radius: 2rem; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            color: white; transition: 0.3s;
+        }
+        .logo-card svg { width: 40px; height: 40px; fill: white; opacity: 0.9; margin-bottom: 0.5rem; }
+        .logo-card span { font-weight: 700; font-size: 1.2rem; opacity: 0.9; }
+
+        .btn-advisor { background: white; color: black; padding: 1.1rem 2.2rem; border-radius: 999px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 1rem; margin-top: 3rem; }
+
+        /* --- FOOTER SECTIONS --- */
+        .white-section { background: white; padding: 10rem 0; z-index: 20; position: relative; }
+        .footer-cta { height: 100vh; background: #9c8df6; position: relative; display: flex; align-items: center; overflow: hidden; }
+
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center;">
+            <a href="#" class="logo">/logo</a>
+            <div class="nav-links-pill">
+                <a href="#">Advisors</a><a href="#">How it Works</a><a href="#">About</a><a href="#">Contact</a>
+            </div>
+            <a href="#" class="btn-get-started">Get Started <div style="background: black; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem;">➔</div></a>
+        </div>
+    </nav>
+
+    <div class="immersive-wrapper">
+        <div class="sticky-viewport">
+            <div class="canvas-container">
+                <canvas id="immersive-canvas"></canvas>
+            </div>
+            <div class="container scroll-content">
+                <!-- HERO -->
+                <div class="phase phase-hero" id="p1">
+                    <h1>Real conversations.<br>Better college decisions.</h1>
+                    <div style="display: flex; gap: 1.5rem;">
+                        <a href="#" class="btn-advisor">Find Your Advisor <div style="background: black; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">➔</div></a>
+                    </div>
+                </div>
+
+                <!-- MISSION -->
+                <div class="phase phase-mission" id="p2">
+                    <p class="tag">OUR MISSION</p>
+                    <h2>To bridge the gap between prospective students and verified current college student advisors.</h2>
+                </div>
+
+                <!-- TRUSTED -->
+                <div class="phase phase-trusted" id="p3">
+                    <p class="tag">TRUSTED BY</p>
+                    <h2 style="color: white; font-size: 4rem;">Future college achievers.</h2>
+                    <div class="logo-grid">
+                        <div class="logo-card">
+                            <svg viewBox="0 0 24 24"><path d="M21 7L9 19L3.5 13.5L4.91 12.09L9 16.17L19.59 5.59L21 7Z"/></svg>
+                            <span>Nike</span>
+                        </div>
+                        <div class="logo-card">
+                            <svg viewBox="0 0 24 24"><path d="M17.05,20.28C14.15,22.21,11,19.24,11,19.24S7.85,22.21,4.95,20.28C1,17.65,1,10.65,4.95,8.02C7.85,6.09,11,9.06,11,9.06S14.15,6.09,17.05,8.02C21,10.65,21,17.65,17.05,20.28z"/></svg>
+                            <span>Apple</span>
+                        </div>
+                        <div class="logo-card"><span>Sony</span></div>
+                        <div class="logo-card"><span>Prada</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="white-section">
+        <div class="container">
+            <h2 style="font-size: 4rem; font-weight: 800; margin-bottom: 4rem;">More than a platform.</h2>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem;">
+                <div style="background: #f4f4f7; padding: 4rem 3rem; border-radius: 2.5rem; height: 400px;"><h3>Verified Mentors</h3></div>
+                <div style="background: #05051a; color: white; padding: 4rem 3rem; border-radius: 2.5rem; height: 400px;"><h3>Secure Calls</h3></div>
+                <div style="background: #f4f4f7; padding: 4rem 3rem; border-radius: 2.5rem; height: 400px;"><h3>Success Guaranteed</h3></div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        const lenis = new Lenis({ lerp: 0.1, duration: 1.2 });
+        function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
+        requestAnimationFrame(raf);
+
+        // --- THREE.JS ORB ---
+        const canvas = document.getElementById('immersive-canvas');
+        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+        camera.position.z = 5;
+
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+                u_time: { value: 0 },
+                u_mouse: { value: new THREE.Vector3(0, 0, 0) },
+                u_color1: { value: new THREE.Color('#0D0764') },
+                u_color2: { value: new THREE.Color('#a496f8') },
+                u_color3: { value: new THREE.Color('#ffffff') }
+            },
+            vertexShader: `
+                uniform float u_time; uniform vec3 u_mouse;
+                varying vec3 vNormal; varying vec3 vViewDir; varying vec3 vPosition;
+                void main() {
+                    vNormal = normalize(normalMatrix * normal); vPosition = position;
+                    float t = u_time * 0.3;
+                    float dist = distance(position, u_mouse);
+                    float displacement = sin(position.x * 0.4 + t) * 0.12 + (0.5 / (1.0 + dist * 2.0)) * 0.4;
+                    vec3 newPos = position + normal * displacement;
+                    vec4 mvPosition = modelViewMatrix * vec4(newPos, 1.0);
+                    vViewDir = -mvPosition.xyz; gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 u_color1; uniform vec3 u_color2; uniform vec3 u_color3; uniform float u_time;
+                varying vec3 vNormal; varying vec3 vViewDir; varying vec3 vPosition;
+                void main() {
+                    vec3 normal = normalize(vNormal); vec3 viewDir = normalize(vViewDir);
+                    float fresnel = pow(1.0 - max(dot(viewDir, normal), 0.0), 3.5);
+                    vec3 color = mix(mix(u_color1, u_color2, sin(u_time)*0.2+0.8), u_color2, fresnel);
+                    color += u_color3 * pow(fresnel, 10.0) * 4.0;
+                    float spec = pow(max(dot(reflect(-normalize(vec3(1.0, 1.0, 1.0)), normal), viewDir), 0.0), 64.0);
+                    color += vec3(1.0) * spec * 1.5;
+                    gl_FragColor = vec4(color, 1.0);
+                }
+            `,
+            transparent: true
+        });
+
+        const orb = new THREE.Mesh(new THREE.SphereGeometry(1.65, 320, 320), material);
+        scene.add(orb);
+
+        const updateSize = () => {
+            renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+            camera.aspect = canvas.clientWidth / canvas.clientHeight;
+            camera.updateProjectionMatrix();
+        };
+        window.addEventListener('resize', updateSize); updateSize();
+
+        let mousePos = new THREE.Vector3(0, 0, 0);
+        let targetMouse = new THREE.Vector3(0, 0, 0);
+        document.addEventListener('mousemove', (e) => {
+            targetMouse.set((e.clientX/innerWidth-0.5)*3, -(e.clientY/innerHeight-0.5)*3, 1.2);
+        });
+
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            material.uniforms.u_time.value = clock.getElapsedTime();
+            mousePos.lerp(targetMouse, 0.08);
+            material.uniforms.u_mouse.value.copy(mousePos);
+            orb.rotation.y += 0.005;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // --- GSAP IMPROVED FLOW ---
+        gsap.registerPlugin(ScrollTrigger);
+
+        const tl = gsap.timeline({
+            scrollTrigger: {
+                trigger: ".immersive-wrapper",
+                start: "top top",
+                end: "bottom bottom",
+                scrub: 1.2
+            }
+        });
+
+        // PHASE 1 -> 2: Shift orb right, scale up edges
+        tl.to(orb.scale, { x: 3.5, y: 3.5, z: 3.5, ease: "power2.inOut" }, 0);
+        tl.to(orb.position, { x: 2.2, ease: "power2.inOut" }, 0); // SHIFT RIGHT to stay out of text way
+        tl.to("#p1", { opacity: 0, y: -40, filter: "blur(10px)" }, 0);
+        tl.to("#p2", { opacity: 1, y: 0, filter: "blur(0px)" }, 0.4);
+
+        // PHASE 2 -> 3: Shift orb left, show glass cards
+        tl.to(orb.position, { x: -2.8, ease: "power2.inOut" }, 1); // SHIFT LEFT for logo grid
+        tl.to("#p2", { opacity: 0, y: -40, filter: "blur(10px)" }, 1);
+        tl.to("#p3", { opacity: 1, y: 0, filter: "blur(0px)" }, 1.4);
+
+    </script>
+</body>
+</html>
