@@ -18,6 +18,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { use3DTilt } from "@/hooks/use3DTilt";
 import { fadeInUp, staggerContainer, viewportConfig } from "@/lib/animations";
 import { ProfileDropdown } from "@/components/ProfileDropdown";
+import { MiniCalendar } from "@/components/MiniCalendar";
 
 const TABS = [
   { id: "advisors", label: "Find Advisors", icon: Search },
@@ -132,9 +133,13 @@ function BookingCardContent({ booking }: { booking: BookingResponse }) {
           <span className={`stat-badge ${
             booking.status === "confirmed" || booking.status === "finalized"
               ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+              : booking.status === "cancelled"
+              ? "bg-red-50 text-red-700 border-red-100"
+              : booking.status === "changed"
+              ? "bg-violet-50 text-violet-700 border-violet-100"
               : "bg-orange-50 text-orange-700 border-orange-100"
           }`}>
-            {booking.status || "pending"}
+            {booking.status?.toUpperCase() || "PENDING"}
           </span>
           {booking.status === "pending" && (
             <button onClick={handleSyncStatus} disabled={syncing} className="text-[10px] text-orange-600 font-bold hover:underline flex items-center gap-1 transition-all">
@@ -192,10 +197,26 @@ export default function StudentDashboard() {
 
   const loadProfile = async (u: FirebaseUser) => {
     try {
+      const storedRole = localStorage.getItem("user_role");
+      if (storedRole && storedRole !== "student") {
+        navigate({ to: "/advisor/dashboard" });
+        return;
+      }
+
       const token = await u.getIdToken(true);
       const profile = await getMyStudentProfile(token);
       setStudent(profile);
-    } catch (e) {}
+      localStorage.setItem("user_role", "student");
+    } catch (e: any) {
+      console.error("StudentDashboard profile load failed:", e);
+      if (e.status === 403 || (e.message && e.message.includes("403"))) {
+        alert("Access Denied: You are registered as an Advisor.");
+        navigate({ to: "/advisor/dashboard" });
+      } else {
+        // Not found or other error
+        navigate({ to: "/auth/signup" });
+      }
+    }
   };
 
   useEffect(() => {
@@ -366,15 +387,17 @@ export default function StudentDashboard() {
 
           {activeTab === "sessions" && (
             <motion.div key="sessions" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                 <div className="card-solid p-6 md:col-span-1 bg-white border-l-4 border-l-navy">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                 <div className="card-solid p-6 md:col-span-1 lg:col-span-2 bg-white border-l-4 border-l-navy flex flex-col justify-center">
                     <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">Active Bookings</p>
                     <p className="text-3xl font-black text-slate-900">{sessionBookings.length}</p>
                  </div>
-                 <div className="md:col-span-2 flex items-center justify-end">
-                    <button className="btn-secondary h-fit py-2.5 px-6 text-xs flex items-center gap-2">
-                       <Monitor size={14} /> DOWNLOAD HISTORY
-                    </button>
+                 <div className="lg:col-span-1">
+                    <MiniCalendar sessions={sessionBookings.map(b => ({
+                      date: b.scheduled_time ? b.scheduled_time.split('T')[0] : "",
+                      title: b.advisor_name,
+                      status: b.status
+                    }))} />
                  </div>
               </div>
 

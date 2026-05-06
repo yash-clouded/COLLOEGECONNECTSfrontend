@@ -42,6 +42,7 @@ export default function AdvisorProfilePage() {
     college_id_acknowledged: false,
     skills: "",
     achievements: "",
+    preferred_timezones: [] as string[],
   });
   
   const [frontFile, setFrontFile] = useState<File | null>(null);
@@ -63,6 +64,12 @@ export default function AdvisorProfilePage() {
 
   const fetchProfile = async (user: FirebaseUser) => {
     try {
+      const storedRole = localStorage.getItem("user_role");
+      if (storedRole && storedRole !== "advisor") {
+        navigate({ to: "/student/dashboard" });
+        return;
+      }
+
       const token = await user.getIdToken();
       const prof = await getMyAdvisorProfile(token);
       setAdvisor(prof);
@@ -84,9 +91,14 @@ export default function AdvisorProfilePage() {
         college_id_acknowledged: !!prof.college_id_front_key, 
         skills: prof.skills || "",
         achievements: prof.achievements || "",
+        preferred_timezones: prof.preferred_timezones || [],
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      if (err.status === 403 || (err.message && err.message.includes("403"))) {
+        alert("Access Denied: You are registered as a Student.");
+        navigate({ to: "/student/dashboard" });
+      }
     } finally {
       setLoading(false);
     }
@@ -99,7 +111,8 @@ export default function AdvisorProfilePage() {
       const token = await authUser.getIdToken();
       let payload: any = { 
         ...editForm,
-        languages: editForm.languages.split(",").map(l => l.trim()).filter(l => !!l)
+        languages: editForm.languages.split(",").map(l => l.trim()).filter(l => !!l),
+        preferred_timezones: editForm.preferred_timezones
       };
       
       if (frontFile && backFile) {
@@ -473,6 +486,68 @@ export default function AdvisorProfilePage() {
                     <div className="bg-white border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold text-[#F5A623] flex justify-between items-center">
                       <span>₹{advisor?.session_price || "0"} <span className="text-slate-400 font-medium">per hour</span></span>
                       <IndianRupee size={14} />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-2.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 flex items-center gap-2">
+                     <Clock size={12} strokeWidth={2.5} />
+                     Preferred Time Slots
+                  </label>
+                  {isEditing ? (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        {editForm.preferred_timezones.map((slot, i) => (
+                          <div key={i} className="bg-navy text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2">
+                            {slot}
+                            <button onClick={() => setEditForm(p => ({...p, preferred_timezones: p.preferred_timezones.filter((_, idx) => idx !== i)}))} className="hover:text-red-400">
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <input 
+                          id="new-slot-input"
+                          placeholder="e.g. 10:00 AM - 11:00 AM" 
+                          className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-sm outline-none focus:border-navy"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              const val = (e.target as HTMLInputElement).value.trim();
+                              if (val && !editForm.preferred_timezones.includes(val)) {
+                                setEditForm(p => ({...p, preferred_timezones: [...p.preferred_timezones, val]}));
+                                (e.target as HTMLInputElement).value = "";
+                              }
+                            }
+                          }}
+                        />
+                        <button 
+                          onClick={() => {
+                            const input = document.getElementById("new-slot-input") as HTMLInputElement;
+                            const val = input.value.trim();
+                            if (val && !editForm.preferred_timezones.includes(val)) {
+                              setEditForm(p => ({...p, preferred_timezones: [...p.preferred_timezones, val]}));
+                              input.value = "";
+                            }
+                          }}
+                          className="bg-navy text-white px-4 rounded-xl text-xs font-bold"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {editForm.preferred_timezones.length > 0 ? (
+                        editForm.preferred_timezones.map((slot, i) => (
+                          <div key={i} className="bg-slate-50 border border-slate-100 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold">
+                            {slot}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-slate-400 text-xs italic">No time slots added. Students won't be able to book sessions.</div>
+                      )}
                     </div>
                   )}
                 </div>

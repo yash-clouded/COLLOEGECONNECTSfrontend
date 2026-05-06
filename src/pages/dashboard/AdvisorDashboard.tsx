@@ -16,6 +16,7 @@ import AdvisorReferEarnPage from "./AdvisorReferEarnPage";
 import { BrandLogo } from "@/components/BrandLogo";
 import { fadeInUp, staggerContainer } from "@/lib/animations";
 import { ProfileDropdown } from "@/components/ProfileDropdown";
+import { MiniCalendar } from "@/components/MiniCalendar";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: TrendingUp },
@@ -78,10 +79,50 @@ export default function AdvisorDashboard() {
 
   const loadProfile = async (u: FirebaseUser) => {
     try {
+      const storedRole = localStorage.getItem("user_role");
+      if (storedRole && storedRole !== "advisor") {
+        navigate({ to: "/student/dashboard" });
+        return;
+      }
+
       const token = await u.getIdToken(true);
       const profile = await getMyAdvisorProfile(token);
       setAdvisor(profile);
-    } catch (e) {}
+      localStorage.setItem("user_role", "advisor");
+    } catch (e: any) {
+      console.error("AdvisorDashboard profile load failed:", e);
+      if (e.status === 403 || (e.message && e.message.includes("403"))) {
+        alert("Access Denied: You are registered as a Student.");
+        navigate({ to: "/student/dashboard" });
+      } else {
+        // Not found or other error
+        navigate({ to: "/auth/signup" });
+      }
+    }
+  };
+
+  const handleSync = async (bookingId: string) => {
+    if (!authUser) return;
+    const token = await authUser.getIdToken(true);
+    const res = await fetch(`/api/payments/sync-status/${bookingId}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (data.ok) {
+      alert("Status synced!");
+      window.location.reload();
+    } else {
+      alert(data.message || "No update.");
+    }
+  };
+
+  const statusColors: Record<string, string> = {
+    pending: "bg-amber-50 text-amber-700 border-amber-100",
+    confirmed: "bg-emerald-50 text-emerald-700 border-emerald-100",
+    cancelled: "bg-red-50 text-red-700 border-red-100",
+    finalized: "bg-navy-light text-navy border-navy/10",
+    changed: "bg-violet-50 text-violet-700 border-violet-100",
   };
 
   useEffect(() => {
@@ -220,10 +261,40 @@ export default function AdvisorDashboard() {
             </motion.div>
           ) : activeTab === "overview" && (
             <motion.div key="overview" variants={staggerContainer()} initial="initial" animate="animate" exit={{ opacity: 0, y: -10 }} className="space-y-10">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <StatCard label="Total Earnings" value={`₹${advisorTotalEarnings}`} icon={IndianRupee} colorClass="text-emerald-600" delay={0.1} />
-                <StatCard label="Sessions" value={advisorTotalSessions} icon={Calendar} colorClass="text-orange-600" delay={0.2} />
-                <StatCard label="Rating" value="5.0 / 5" icon={Star} colorClass="text-amber-500" delay={0.3} />
+              {(!advisor?.preferred_timezones || advisor.preferred_timezones.length === 0) && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-amber-50 border-2 border-amber-100 rounded-[2rem] p-6 flex items-start gap-5 shadow-sm"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0">
+                    <Clock size={24} className="text-amber-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-amber-900 uppercase tracking-widest mb-1">Set Your Availability</h4>
+                    <p className="text-sm text-amber-700 font-bold mb-4">Students cannot book sessions with you until you add your preferred time slots. This is required for your profile to appear to students.</p>
+                    <button 
+                      onClick={() => navigate({ to: "/advisor/profile" })}
+                      className="bg-amber-600 text-white text-[10px] font-black px-6 py-3 rounded-xl uppercase tracking-widest hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 active:scale-95"
+                    >
+                      Setup Availability Now
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  <StatCard label="Total Earnings" value={`₹${advisorTotalEarnings}`} icon={IndianRupee} colorClass="text-emerald-600" delay={0.1} />
+                  <StatCard label="Sessions" value={advisorTotalSessions} icon={Calendar} colorClass="text-orange-600" delay={0.2} />
+                  <StatCard label="Rating" value="5.0 / 5" icon={Star} colorClass="text-amber-500" delay={0.3} />
+                </div>
+                <div className="lg:col-span-1">
+                  <MiniCalendar sessions={sessionBookings.map(b => ({
+                    date: b.scheduled_time ? b.scheduled_time.split('T')[0] : "",
+                    title: b.student_name,
+                    status: b.status
+                  }))} />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -293,16 +364,20 @@ export default function AdvisorDashboard() {
                       className="card-solid group rounded-2xl p-6 cursor-pointer"
                     >
                       <div className="flex justify-between items-start mb-6">
-                        <div className="flex items-center gap-4">
-                           <div className={`w-11 h-11 rounded-xl ${getStudentTheme(booking.student_name || "S").bg} border ${getStudentTheme(booking.student_name || "S").border} flex items-center justify-center font-black ${getStudentTheme(booking.student_name || "S").text}`}>
-                             {booking.student_name?.charAt(0)}
-                           </div>
-                           <div>
-                             <p className="text-sm font-black text-slate-900 group-hover:text-mango transition-colors">{booking.student_name}</p>
-                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{booking.student_email?.split('@')[0]}</p>
-                           </div>
+                        <div>
+                          <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-1">Student</p>
+                          <p className="text-lg font-bold text-slate-900">{booking.student_name}</p>
                         </div>
-                        <span className="stat-badge bg-orange-50 text-orange-700 border-orange-100">{booking.status}</span>
+                        <div className="flex flex-col items-end gap-2">
+                          <span className={`stat-badge ${statusColors[booking.status] || "bg-slate-50 text-slate-700"}`}>
+                            {booking.status?.toUpperCase() || "PENDING"}
+                          </span>
+                          {booking.status === "pending" && (
+                            <button onClick={() => handleSync(booking.id)} className="text-[10px] text-amber-600 font-bold hover:underline">
+                              SYNC STATUS
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3 mb-6">
                         <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
@@ -316,7 +391,7 @@ export default function AdvisorDashboard() {
                       </div>
                       <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-t border-slate-100 pt-4">
                         <span>EST. SESSION COMPLETION</span>
-                        <div className={`w-8 h-8 rounded-lg ${getStudentTheme(booking.student_name || "S").bg} ${getStudentTheme(booking.student_name || "S").text} flex items-center justify-center transition-all group-hover:bg-mango group-hover:text-white`}>
+                        <div className="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center transition-all group-hover:bg-navy group-hover:text-white">
                           <ArrowRight size={16} strokeWidth={3} className="group-hover:translate-x-0.5 transition-transform" />
                         </div>
                       </div>
@@ -372,7 +447,7 @@ export default function AdvisorDashboard() {
                   </div>
                </div>
 
-               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="card-solid rounded-[2rem] p-10">
                     <h4 className="text-lg font-bold text-slate-900 mb-8">Payout Information</h4>
                     <div className="space-y-5">

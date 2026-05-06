@@ -376,6 +376,7 @@ export async function bookAdvisorSession(
   firebaseIdToken: string,
   advisorId: string,
   selectedSlot: string,
+  selectedDate: string,
 ): Promise<{
   ok: boolean;
   advisor_email?: string;
@@ -389,7 +390,7 @@ export async function bookAdvisorSession(
       "Content-Type": "application/json",
       Authorization: `Bearer ${firebaseIdToken}`,
     },
-    body: JSON.stringify({ advisor_id: advisorId, selected_slot: selectedSlot }),
+    body: JSON.stringify({ advisor_id: advisorId, selected_slot: selectedSlot, selected_date: selectedDate }),
   });
   if (!res.ok) {
     throw new Error(await parseErrorMessage(res));
@@ -406,6 +407,7 @@ export async function bookAdvisorSession(
 export async function notifyStudentSessionUpdate(
   firebaseIdToken: string,
   payload: {
+    booking_id: string;
     action: "accept" | "reject" | "change";
     student_email: string;
     student_name: string;

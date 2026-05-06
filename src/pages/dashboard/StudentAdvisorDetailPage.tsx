@@ -54,6 +54,11 @@ export default function StudentAdvisorDetailPage() {
   const [loading, setLoading] = useState(true);
   const [bookingBusy, setBookingBusy] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState("");
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split("T")[0];
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -93,6 +98,10 @@ export default function StudentAdvisorDetailPage() {
     if (!advisor) return;
     if (!selectedSlot.trim()) {
       alert("Please select one preferred time slot before booking.");
+      return;
+    }
+    if (!selectedDate.trim()) {
+      alert("Please select a date for your session.");
       return;
     }
 
@@ -140,7 +149,7 @@ export default function StudentAdvisorDetailPage() {
           try {
             setBookingBusy(true);
             await verifyPayment(token, response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature);
-            await bookAdvisorSession(token, advisor.id, selectedSlot.trim());
+            await bookAdvisorSession(token, advisor.id, selectedSlot.trim(), selectedDate.trim());
             const booking: SessionBooking = {
               id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
               advisorId: advisor.id,
@@ -148,7 +157,7 @@ export default function StudentAdvisorDetailPage() {
               studentName: studentName || "Student",
               studentEmail: studentEmail || "unknown@email",
               sessionPrice: String(advisor.session_price || ""),
-              selectedSlot: selectedSlot.trim(),
+              selectedSlot: `${selectedDate.trim()} at ${selectedSlot.trim()}`,
               bookedAt: new Date().toISOString(),
               status: "pending",
             };
@@ -340,47 +349,72 @@ export default function StudentAdvisorDetailPage() {
               )}
             </div>
 
-            {/* === TIME SLOTS === */}
-            {slots.length > 0 && (
-              <div className="bg-white border border-slate-100 rounded-[2rem] p-6 sm:p-8 shadow-sm">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="w-10 h-10 rounded-2xl bg-navy/10 flex items-center justify-center">
-                    <Calendar size={18} className="text-navy" />
+                <div className="mb-8 p-6 bg-slate-50/50 border border-slate-100 rounded-[2rem]">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="w-10 h-10 rounded-2xl bg-mango/10 flex items-center justify-center">
+                      <Calendar size={18} className="text-mango" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Step 1</p>
+                      <p className="text-sm font-black text-slate-900">Choose Session Date</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Pick Your Slot</p>
-                    <p className="text-sm font-black text-slate-900">Available Time Slots</p>
-                  </div>
+                  <input
+                    type="date"
+                    min={new Date().toISOString().split("T")[0]}
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-full bg-white border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 outline-none focus:border-navy transition-all shadow-sm"
+                  />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {slots.map((slot) => (
-                    <label
-                      key={slot}
-                      className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                        selectedSlot === slot
-                          ? "border-navy bg-navy/5"
-                          : "border-slate-100 hover:border-slate-200 bg-slate-50/50"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="booking-slot"
-                        value={slot}
-                        checked={selectedSlot === slot}
-                        onChange={() => setSelectedSlot(slot)}
-                        className="accent-navy"
-                      />
-                      <div className="flex items-center gap-2">
-                        <Clock size={14} className={selectedSlot === slot ? "text-navy" : "text-slate-400"} />
-                        <span className={`text-sm font-bold ${selectedSlot === slot ? "text-navy" : "text-slate-700"}`}>
-                          {slot}
-                        </span>
+
+                {slots.length > 0 ? (
+                  <div className="space-y-5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-navy/10 flex items-center justify-center">
+                        <Clock size={18} className="text-navy" />
                       </div>
-                    </label>
-                  ))}
-                </div>
+                      <div>
+                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Step 2</p>
+                        <p className="text-sm font-black text-slate-900">Pick Available Time Slot</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {slots.map((slot) => (
+                        <label
+                          key={slot}
+                          className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                            selectedSlot === slot
+                              ? "border-navy bg-navy/5 shadow-md"
+                              : "border-slate-100 hover:border-slate-200 bg-white"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="booking-slot"
+                            value={slot}
+                            checked={selectedSlot === slot}
+                            onChange={() => setSelectedSlot(slot)}
+                            className="accent-navy"
+                          />
+                          <div className="flex items-center gap-2">
+                            <Clock size={14} className={selectedSlot === slot ? "text-navy" : "text-slate-400"} />
+                            <span className={`text-sm font-bold ${selectedSlot === slot ? "text-navy" : "text-slate-700"}`}>
+                              {slot}
+                            </span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-8 text-center bg-amber-50 border border-amber-100 rounded-[2rem]">
+                    <AlertTriangle size={32} className="text-amber-500 mx-auto mb-3" />
+                    <p className="text-sm font-bold text-amber-900 uppercase tracking-widest mb-1">No Slots Available</p>
+                    <p className="text-xs text-amber-700 font-medium">This advisor hasn't set their availability yet.</p>
+                  </div>
+                )}
               </div>
-            )}
 
           </motion.div>
         )}

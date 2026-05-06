@@ -57,8 +57,22 @@ export default function AdvisorSessionDetailPage() {
 
 
   const handleAccept = async () => {
-    // Optionally call backend to accept
-    setStatusMsg("Session accepted.");
+    if (!booking) return;
+    try {
+      const token = await getFirebaseAuth().currentUser?.getIdToken(true);
+      if (!token) return;
+      await notifyStudentSessionUpdate(token, {
+        booking_id: bookingId,
+        action: "accept",
+        student_email: booking.student_email,
+        student_name: booking.student_name,
+        old_slot: booking.selected_slot,
+      });
+      setStatusMsg("Session accepted and confirmed!");
+      setBooking(prev => prev ? { ...prev, status: "confirmed" } : null);
+    } catch (e) {
+      alert("Failed to accept session.");
+    }
   };
 
   const handleReject = async () => {
@@ -71,14 +85,16 @@ export default function AdvisorSessionDetailPage() {
         return;
       }
       await notifyStudentSessionUpdate(token, {
+        booking_id: bookingId,
         action: "reject",
         student_email: booking.student_email,
         student_name: booking.student_name,
         old_slot: booking.selected_slot,
       });
-      setStatusMsg("Rejected and email sent to student.");
+      setStatusMsg("Session rejected.");
+      setBooking(prev => prev ? { ...prev, status: "cancelled" } : null);
     } catch (e) {
-      setStatusMsg(e instanceof Error ? e.message : "Could not reject session.");
+      alert("Failed to reject session.");
     } finally {
       setBusy(false);
     }
@@ -98,15 +114,17 @@ export default function AdvisorSessionDetailPage() {
         return;
       }
       await notifyStudentSessionUpdate(token, {
+        booking_id: bookingId,
         action: "change",
         student_email: booking.student_email,
         student_name: booking.student_name,
         old_slot: booking.selected_slot,
         new_slot: newSlot,
       });
-      setStatusMsg("Preferred time changed and email sent to student.");
+      setStatusMsg(`Proposed new slot: ${newSlot}`);
+      setBooking(prev => prev ? { ...prev, status: "changed", selected_slot: newSlot } : null);
     } catch (e) {
-      setStatusMsg(e instanceof Error ? e.message : "Could not change preferred time.");
+      alert("Failed to propose new slot.");
     } finally {
       setBusy(false);
     }

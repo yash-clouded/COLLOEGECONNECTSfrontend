@@ -46,6 +46,12 @@ export default function StudentProfilePage() {
 
   const fetchProfile = async (user: FirebaseUser) => {
     try {
+      const storedRole = localStorage.getItem("user_role");
+      if (storedRole && storedRole !== "student") {
+        navigate({ to: "/advisor/dashboard" });
+        return;
+      }
+
       const token = await user.getIdToken();
       const [prof, ref] = await Promise.all([
         getMyStudentProfile(token),
@@ -62,8 +68,12 @@ export default function StudentProfilePage() {
         jee_mains_rank: prof.jee_mains_rank || "",
         jee_advanced_rank: prof.jee_advanced_rank || "",
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      if (err.status === 403 || (err.message && err.message.includes("403"))) {
+        alert("Access Denied: You are registered as an Advisor.");
+        navigate({ to: "/advisor/dashboard" });
+      }
     } finally {
       setLoading(false);
     }
